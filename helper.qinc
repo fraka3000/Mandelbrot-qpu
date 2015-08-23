@@ -1,0 +1,132 @@
+.const r_nb_qpus, ra0
+.const r_qpu, ra1
+.const ra_link, ra2
+.const r_dump, rb0
+
+.macro init_base
+    mov r_nb_qpus, unif
+    mov r_qpu, unif
+    mov r_dump, unif
+.endm
+
+.macro MUTEX_ACQ
+    or -, rb51, ra39
+    nop
+.endm
+
+.macro MUTEX_REL
+    or rb51, ra39, ra39
+    nop
+.endm
+
+.macro sync, n_qpu, n_sem
+    mov r0, 0
+    srel -, n_sem
+    sub.setf -, n_qpu, r_qpu
+    brr.anynz -,:endsync
+    nop
+    nop
+    nop
+    mov r0, r_nb_qpus
+:loopsync
+    sacq -, n_sem
+    sub.setf r0, r0, 1    
+    brr.anynz -,:loopsync
+    nop
+    nop
+    nop
+    mov r0, 1
+:endsync    
+.endm
+
+.macro printf, value 
+    MUTEX_ACQ
+    mov vw_setup, vpm_setup(1, 1, 0xA00|63)
+    mov -, vw_wait
+    mov vpm, value
+    shl ra31, r_qpu, 6
+    mov vw_setup, vdw_setup_0(1, 16, dma_h32(63,0))
+    add ra31, ra31, r_dump
+    mov vw_setup, vdw_setup_1(0)
+    mov vw_addr, ra31 
+    mov -, vw_wait
+
+    mov vw_setup, vpm_setup(1, 1, 0xA00)
+    MUTEX_REL
+.endm
+
+.macro printf8, value, line
+    MUTEX_ACQ
+    mov vw_setup, vpm_setup(1, 1, 0x800|(63<<2)|line)
+    mov -, vw_wait
+    mov vpm, value
+    shl ra31, r_qpu, 6
+    mov vw_setup, vdw_setup_0(1, 16, dma_h32(63,0))
+    add ra31, ra31, r_dump
+    mov vw_setup, vdw_setup_1(0)
+    mov vw_addr, ra31
+    mov vw_setup, vpm_setup(1, 1, 0xA00)
+    MUTEX_REL
+.endm
+
+.macro printf16, value, line
+    MUTEX_ACQ
+    mov vw_setup, vpm_setup(1, 1, 0x900|(63<<1)|line)
+    mov -, vw_wait
+    mov vpm, value
+    shl ra31, r_qpu, 6
+    mov vw_setup, vdw_setup_0(1, 16, dma_h32(63,0))
+    add ra31, ra31, r_dump
+    mov vw_setup, vdw_setup_1(0)
+    mov vw_addr, ra31
+    mov vw_setup, vpm_setup(1, 1, 0xA00)
+    MUTEX_REL
+.endm
+
+
+.macro exit
+    brr -, :exit
+    nop
+    nop
+    nop
+.endm
+
+.macro printf_no_mutex, value
+    mov vw_setup, vpm_setup(1, 1, 0xA00|63)
+    mov -, vw_wait
+    mov vpm, value 
+    shl ra31, r_qpu, 6
+    mov vw_setup, vdw_setup_0(1, 16, dma_h32(63,0))
+    add ra31, ra31, r_dump
+    mov vw_setup, vdw_setup_1(0)
+    mov vw_addr,ra31
+    mov vw_setup, vpm_setup(1, 1, 0xA00)
+    nop
+.endm
+
+.macro dump_all_vpm
+    MUTEX_ACQ
+    mov vw_setup, vdw_setup_0(64, 16, dma_h32(0,0))
+    mov vw_setup, vdw_setup_1(0)
+    mov vw_setup, vpm_setup(1, 1, 0xA00)
+    mov -, vw_wait
+    mov vw_addr, r_framebuffer
+    MUTEX_REL
+    nop
+.endm
+
+
+
+
+:exit_with_mutex
+    MUTEX_REL
+:exit
+    sync 0, 0
+
+    mov -, vw_wait
+    thrend
+    sub.setf -, r0, 1
+    mov.ifz interrupt, 1
+    nop
+    nop
+    nop
