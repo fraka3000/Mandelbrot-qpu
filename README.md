@@ -2,7 +2,7 @@
 
 to assemble the qasm files, you need [vc4asm](https://github.com/maazl/vc4asm) 
 
-you need to create a device file : `sudo mknod char_dev c 100 0`.
+you need to create a device file : `sudo mknod char_dev c 256 0`.
 
 `make`,
 
