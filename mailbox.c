@@ -247,7 +247,7 @@ int mbox_open() {
    file_desc = open(DEVICE_FILE_NAME, 0);
    if (file_desc < 0) {
       printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-      printf("Try creating a device file with: sudo mknod %s c %d 0\n", DEVICE_FILE_NAME, MAJOR_NUM);
+      printf("Try creating a device file with: sudo mknod %s c %d 0\n", DEVICE_FILE_NAME, 249);
       exit(-1);
    }
    return file_desc;
